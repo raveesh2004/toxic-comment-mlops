@@ -6,12 +6,14 @@ a stub without loading the real model.
 
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import Depends, FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 MODEL_DIR = os.getenv("MODEL_DIR", "model")
+STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
     title="Toxic Comment Classifier",
@@ -42,8 +44,8 @@ class PredictionOut(BaseModel):
 
 
 @app.get("/", include_in_schema=False)
-def root() -> RedirectResponse:
-    return RedirectResponse(url="/docs")
+def root() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toxic Comment Classifier</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --hairline: #e1e0d9;
+    --border: rgba(11, 11, 11, 0.10);
+    --accent: #2a78d6;
+    --accent-ink: #ffffff;
+    --good: #0ca30c;
+    --good-text: #006300;
+    --critical: #d03b3b;
+    --critical-text: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --hairline: #2c2c2a;
+      --border: rgba(255, 255, 255, 0.10);
+      --accent: #3987e5;
+      --accent-ink: #ffffff;
+      --good: #0ca30c;
+      --good-text: #0ca30c;
+      --critical: #d03b3b;
+      --critical-text: #e66767;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 20px;
+  }
+  main { width: 100%; max-width: 620px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  h1 { font-size: 28px; font-weight: 700; margin: 6px 0 8px; }
+  .sub { color: var(--ink-2); font-size: 15px; line-height: 1.5; margin-bottom: 28px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  textarea {
+    width: 100%; min-height: 96px; resize: vertical;
+    font: inherit; color: var(--ink);
+    background: transparent; border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 12px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  button.primary {
+    font: inherit; font-weight: 600;
+    background: var(--accent); color: var(--accent-ink);
+    border: 0; border-radius: 8px; padding: 10px 22px; cursor: pointer;
+  }
+  button.primary:disabled { opacity: 0.55; cursor: wait; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .chip {
+    font: inherit; font-size: 13px; color: var(--ink-2);
+    background: transparent; border: 1px solid var(--hairline);
+    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--ink); }
+  .chips-label { font-size: 12px; color: var(--muted); width: 100%; }
+
+  #result { margin-top: 20px; display: none; }
+  .verdict { display: flex; align-items: baseline; gap: 10px; }
+  .verdict .icon { font-size: 18px; }
+  .verdict .label { font-size: 20px; font-weight: 700; }
+  .verdict.good .icon, .verdict.good .label { color: var(--good-text); }
+  .verdict.critical .icon, .verdict.critical .label { color: var(--critical-text); }
+  .meter-block { margin-top: 14px; }
+  .meter-caption {
+    display: flex; justify-content: space-between;
+    font-size: 13px; color: var(--ink-2); margin-bottom: 6px;
+  }
+  .meter-caption .value { color: var(--ink); font-weight: 600; }
+  .meter {
+    height: 8px; border-radius: 4px; background: var(--hairline); overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%; width: 0; border-radius: 4px;
+    transition: width 420ms ease;
+  }
+  .verdict-note { margin-top: 12px; font-size: 13px; color: var(--muted); }
+  #error {
+    display: none; margin-top: 20px; font-size: 14px;
+    color: var(--critical-text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; background: var(--surface);
+  }
+  footer {
+    margin-top: 28px; font-size: 13px; color: var(--muted);
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Live model demo</p>
+  <h1>Toxic Comment Classifier</h1>
+  <p class="sub">
+    A DistilBERT transformer fine-tuned for offensive-language detection —
+    experiment-tracked with MLflow, served by FastAPI, packaged in Docker.
+    Type a comment and the model classifies it in real time.
+  </p>
+
+  <div class="card">
+    <label for="comment" class="chips-label" style="margin-bottom:8px; display:block;">Comment to analyze</label>
+    <textarea id="comment" placeholder="Type or paste a comment…"></textarea>
+    <div class="row">
+      <button class="primary" id="go">Classify</button>
+      <span class="verdict-note" id="latency"></span>
+    </div>
+    <div class="chips" id="chips">
+      <span class="chips-label">Try an example:</span>
+      <button class="chip">Have a wonderful day, friend!</button>
+      <button class="chip">You are a complete idiot.</button>
+      <button class="chip">This movie was a waste of time.</button>
+    </div>
+
+    <div id="result">
+      <hr style="border:0;border-top:1px solid var(--hairline);margin:18px 0;">
+      <div class="verdict" id="verdict">
+        <span class="icon" id="v-icon"></span>
+        <span class="label" id="v-label"></span>
+      </div>
+      <div class="meter-block">
+        <div class="meter-caption">
+          <span>Model confidence</span>
+          <span class="value" id="v-score"></span>
+        </div>
+        <div class="meter"><div class="meter-fill" id="v-fill"></div></div>
+      </div>
+      <p class="verdict-note">
+        Prediction by a fine-tuned <code>distilbert-base-uncased</code>
+        (SemEval-2019 OffensEval dataset, checkpoint selected on validation F1).
+      </p>
+    </div>
+
+    <div id="error"></div>
+  </div>
+
+  <footer>
+    <a href="/docs">API docs</a>
+    <a href="/health">Health check</a>
+    <a href="https://github.com/raveesh2004/toxic-comment-mlops">Source on GitHub</a>
+  </footer>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const styles = getComputedStyle(document.documentElement);
+
+  async function classify() {
+    const text = $("comment").value.trim();
+    if (!text) return;
+    $("go").disabled = true;
+    $("error").style.display = "none";
+    const t0 = performance.now();
+    try {
+      const res = await fetch("/predict", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error("API returned " + res.status);
+      const { label, score } = await res.json();
+      const offensive = label === "offensive";
+      const verdict = $("verdict");
+      verdict.className = "verdict " + (offensive ? "critical" : "good");
+      $("v-icon").textContent = offensive ? "⚠" : "✓";
+      $("v-label").textContent = offensive ? "Offensive" : "Not offensive";
+      $("v-score").textContent = (score * 100).toFixed(1) + "%";
+      const fill = $("v-fill");
+      fill.style.background = styles.getPropertyValue(offensive ? "--critical" : "--good");
+      fill.style.width = (score * 100).toFixed(1) + "%";
+      $("result").style.display = "block";
+      $("latency").textContent = Math.round(performance.now() - t0) + " ms";
+    } catch (err) {
+      $("result").style.display = "none";
+      $("latency").textContent = "";
+      $("error").textContent =
+        "Could not get a prediction — is the model trained and the server running? " +
+        "(Run: python src/train.py, then restart the server.) Details: " + err.message;
+      $("error").style.display = "block";
+    } finally {
+      $("go").disabled = false;
+    }
+  }
+
+  $("go").addEventListener("click", classify);
+  $("comment").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) classify();
+  });
+  $("chips").addEventListener("click", (e) => {
+    if (e.target.classList.contains("chip")) {
+      $("comment").value = e.target.textContent;
+      classify();
+    }
+  });
+</script>
+</body>
+</html>

@@ -15,6 +15,12 @@ app.dependency_overrides[get_classifier] = lambda: fake_classifier
 client = TestClient(app)
 
 
+def test_root_serves_demo_page():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Toxic Comment Classifier" in response.text
+
+
 def test_health():
     response = client.get("/health")
     assert response.status_code == 200

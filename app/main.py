@@ -8,6 +8,7 @@ import os
 from functools import lru_cache
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 MODEL_DIR = os.getenv("MODEL_DIR", "model")
@@ -38,6 +39,11 @@ class BatchIn(BaseModel):
 class PredictionOut(BaseModel):
     label: str
     score: float
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")

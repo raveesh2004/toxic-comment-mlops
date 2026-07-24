@@ -48,8 +48,8 @@ def main() -> None:
     parser.add_argument("--output-dir", default="model")
     args = parser.parse_args()
 
-    # tweet_eval/offensive: binary offensive-language detection, ~12k train
-    dataset = load_dataset("tweet_eval", "offensive")
+    # cardiffnlp/tweet_eval "offensive": binary offensive-language detection, ~12k train
+    dataset = load_dataset("cardiffnlp/tweet_eval", "offensive")
     if args.max_train_samples:
         dataset["train"] = dataset["train"].select(range(args.max_train_samples))
 
